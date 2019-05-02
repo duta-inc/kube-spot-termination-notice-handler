@@ -127,6 +127,11 @@ fi
 GRACE_PERIOD=${GRACE_PERIOD:-120}
 kubectl drain "${NODE_NAME}" --force --ignore-daemonsets --delete-local-data --grace-period="${GRACE_PERIOD}"
 
+fluentd_pod="$(kubectl describe node $NODE_NAME | grep fluent | awk '{ print $2 }')"
+if [ -n "$fluentd_pod" ]; then
+    kubectl delete pod -n kube-system "$fluentd_pod"
+fi
+
 # Sleep for 200 seconds to prevent this script from looping.
 # The instance should be terminated by the end of the sleep.
 sleep 200
