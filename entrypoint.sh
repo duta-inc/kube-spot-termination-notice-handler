@@ -121,14 +121,18 @@ if [ "${DETACH_ASG}" != "false" ] && [ "${ASG_NAME}" != "" ]; then
   aws --region "${REGION}" autoscaling detach-instances --instance-ids "${INSTANCE_ID}" --auto-scaling-group-name "${ASG_NAME}" --no-should-decrement-desired-capacity &
 fi
 
+# get the fluentd pod name before draining
+fluentd_pod="$(kubectl describe node $NODE_NAME | grep fluent | awk '{ print $2 }')"
+echo "found fluentd pod $fluentd_pod"
 
 # Drain the node.
 # https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/#use-kubectl-drain-to-remove-a-node-from-service
 GRACE_PERIOD=${GRACE_PERIOD:-120}
 kubectl drain "${NODE_NAME}" --force --ignore-daemonsets --delete-local-data --grace-period="${GRACE_PERIOD}"
 
-fluentd_pod="$(kubectl describe node $NODE_NAME | grep fluent | awk '{ print $2 }')"
+sleep 10
 if [ -n "$fluentd_pod" ]; then
+    echo "deleting fluentd pod $fluentd_pod"
     kubectl delete pod -n kube-system "$fluentd_pod"
 fi
 
